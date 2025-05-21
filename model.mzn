@@ -121,11 +121,6 @@ constraint %% 1 exam per room: if two exams collide, they are in a different roo
         endif
     );
 
-constraint %% no exam on 2 days
-    forall(s in Students) (
-        (StartTs[s] - 1) mod SlotsPerDay <= SlotsPerDay - ExamLen[s]
-    );
-
 
 constraint %% student & instructor both available at exam time slots
     forall(s in Students) (
