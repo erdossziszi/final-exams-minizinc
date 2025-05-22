@@ -1,4 +1,4 @@
-# Wrapper script to for running MiniZinc
+# Wrapper script for running MiniZinc
 
 import os
 from pathlib import Path
