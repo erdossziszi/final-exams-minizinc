@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run MiniZinc (Gurobi + current .dzn)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "minizinc.py",
+      "args": ["${file}", "${workspaceFolder}/results"],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
