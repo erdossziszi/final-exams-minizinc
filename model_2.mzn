@@ -1,5 +1,6 @@
 include "globals.mzn";
 int: StudentsNr;    % Number of Students
+int: StudentTypesNr;    % Number of Types of Students
 int: InstructorsNr; % Number of Instructors
 int: DaysNr;    % Number of Days
 int: SlotsPerDay;   % Exam slots per day for a room
@@ -13,6 +14,7 @@ int: LunchTsMinLen; % Minimal number of timeslots for lunch break
 
 set of int: Instructors = 1..InstructorsNr; % Instructor IDs in a continous set
 set of int: Students = 1..StudentsNr;   % Student IDs in a continous set
+set of int: StudentTypes = 1..StudentTypesNr; % Student Type IDs in a continous set
 set of int: Courses = 1..CoursesNr; % Course IDs in a continous set
 set of int: Rooms = 1..RoomNr;  % Room IDs in a continous set
 set of int: Days = 1..DaysNr;   % Days in a continous set
@@ -24,15 +26,16 @@ int: TotalAvTs = TotalTs div AvailabilitySlotsLenght;   % Number of availabiliti
 
 array[Instructors] of set of 1..ProgrammNr: InstructorsProgramm;    % Set of programmes an instructor is capable of
 array[Instructors, 1..TotalAvTs] of 0..1: InstructorsAvailability;   % Availabilities per instructor (1 = available)
-array[Students,1..TotalAvTs] of 0..1: StudentsAvailability;
+%array[Students,1..TotalAvTs] of 0..1: StudentsAvailability;
 
 int: SessionNr = DaysNr * RoomNr;   % Number of possible exam sessions
 set of int: Sessions = 1..SessionNr;    % Exam Session IDs in a continous set
 
-array[Students] of 1..ProgrammNr: StudentsProgramm; % Programme for a given student
-array[Students] of 1..DegreeNr: StudentsDegree; % Degree level for a given student
-array[Students] of Instructors: StudentsSupervisorId;   % Instructor ID of a given student's supervisor
-array[Students] of set of Courses: StudentsCourseIds;   % Courses for a given student
+array[StudentTypes] of 1..ProgrammNr: StudentTypesProgramm; % Programme for a given studentType
+%array[Students] of 1..DegreeNr: StudentsDegree; % Degree level for a given student
+%array[Students] of Instructors: StudentsSupervisorId;   % Instructor ID of a given student's supervisor
+array[StudentTypes] of set of Courses: StudentTypesCourseIds;   % Courses for a given studentType
+array[StudentTypes] of 1..StudentsNr: StudentTypesNumber; % Number of the students from a given studentType
 
 array[Courses] of set of Instructors: CoursesInstructorIds; % Set of instructors a course can be taught by
 
@@ -73,11 +76,6 @@ array[Sessions] of var 1..TotalTs: LunchStartTs;    % Starting time slot for the
 array[Sessions] of var LunchTsMinLen..SlotsPerDay: LunchLen;    % Number of time slots for lunch for a given session
 array[Sessions] of var Rooms: SessionRoomSchedule;    %  Room ID for a given session
 
-% constraint symmetry_breaking_constraint(
-%     forall(s1, s2 in Students where ((s1 < s2) /\ (StudentsProgramm[s1] == StudentsProgramm[s2]) /\ (StudentsCourseIds[s1] == StudentsCourseIds[s2]))) (
-%         StartTs[s1] <= StartTs[s2]
-%     )
-% ); 
 
 %% Determines what is the day of the time slot
 function var int: day(var int: ts, int: unit) =
