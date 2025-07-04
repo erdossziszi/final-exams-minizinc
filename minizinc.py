@@ -7,18 +7,24 @@ import sys
 import time
 
 
-def __format_time(elapsed: int) -> str:
+def __format_time(elapsed: float) -> str:
     if elapsed < 60:
-        return f'Elapsed time: {elapsed:.2f} s'
+        return f'{elapsed:.2f} s'
     elif elapsed < 3600:
         mins = elapsed / 60
-        return f'Elapsed time: {mins:.2f} m'
+        return f'{mins:.2f} m'
     else:
         hrs = elapsed / 3600
-        return f'Elapsed time: {hrs:.2f} h'
+        return f'{hrs:.2f} h'
 
 
-def run_model_on_input(input_path: str, output_folder: str, model_path: str = 'model.mzn'):
+def run_model_on_input(
+        input_path: str,
+        output_folder: str,
+        model_path: str = 'model.mzn',
+        number_of_threads: int = 1,
+        time_limit_seconds: int = 0
+):
     input_filename = Path(input_path).name
     filename_parts = input_filename.rsplit('.', 1)
 
@@ -31,7 +37,23 @@ def run_model_on_input(input_path: str, output_folder: str, model_path: str = 'm
     with open(output_filepath, 'w') as f:
         start_time = time.time()
 
-        process = subprocess.Popen(['minizinc.exe', '--solver', 'Gurobi', model_path, input_path, '--verbose'], stdout=subprocess.PIPE, text=True)
+        process_parameters = [
+            'minizinc.exe',
+            '--solver',
+            'Gurobi',
+            model_path,
+            input_path,
+            '--verbose'
+        ]
+
+        if time_limit_seconds > 0:
+            # Param in milliseconds
+            process_parameters.extend(['--solver-time-limit', str(time_limit_seconds * 1000)])
+
+        if number_of_threads > 1:
+            process_parameters.extend(['-p', str(number_of_threads)])
+
+        process = subprocess.Popen(process_parameters, stdout=subprocess.PIPE, text=True)
 
         # Read line-by-line as the process runs
         for line in process.stdout:
@@ -42,12 +64,10 @@ def run_model_on_input(input_path: str, output_folder: str, model_path: str = 'm
         process.wait()
 
         end_time = time.time()
-        elapsed = end_time - start_time
-        f.write(f'% time elapsed: {__format_time(elapsed)}')
-
+        elapsed_time = end_time - start_time
+        f.write(f'% time elapsed: {__format_time(elapsed_time)}')
 
     print(f'Output saved to {output_filepath}')
-
 
 
 if __name__ == '__main__':
