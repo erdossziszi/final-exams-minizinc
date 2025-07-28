@@ -102,11 +102,11 @@ constraint %% fill in collision matrix: 1 if the time interval for two students 
         /\ CollisionMX[s1, s2] == CollisionMX[s2, s1]
     );
 
-%%---------------------------
-constraint
-   forall(i in Students) (
-      sum(j in Students) (CollisionMX[i, j]) <= RoomNr
-   );
+% %%---------------------------
+% constraint
+%    forall(i in Students) (
+%       sum(j in Students) (CollisionMX[i, j]) <= RoomNr
+%    );
 
 constraint %% intersected lunch & exam not in same room - Exam cannot happen in a room with lunch break
     forall(s in Students, L in Sessions) (
