@@ -23,8 +23,8 @@ int: TotalTs = DaysNr * SlotsPerDay;    % Total number of Time Slots
 int: TotalAvTs = TotalTs div AvailabilitySlotsLenght;   % Number of availabilities per instructor
 
 array[Instructors] of set of 1..ProgrammNr: InstructorsProgramm;    % Set of programmes an instructor is capable of
-array[Instructors, 1..TotalAvTs] of 0..1: InstructorsAvailability;   % Availabilities per instructor (1 = available)
-array[Students,1..TotalAvTs] of 0..1: StudentsAvailability;
+%array[Instructors, 1..TotalAvTs] of 0..1: InstructorsAvailability;   % Availabilities per instructor (1 = available)
+%array[Students,1..TotalAvTs] of 0..1: StudentsAvailability;
 
 int: SessionNr = DaysNr * RoomNr;   % Number of possible exam sessions
 set of int: Sessions = 1..SessionNr;    % Exam Session IDs in a continous set
@@ -73,11 +73,11 @@ array[Sessions] of var 1..TotalTs: LunchStartTs;    % Starting time slot for the
 array[Sessions] of var LunchTsMinLen..SlotsPerDay: LunchLen;    % Number of time slots for lunch for a given session
 array[Sessions] of var Rooms: SessionRoomSchedule;    %  Room ID for a given session
 
-% constraint symmetry_breaking_constraint(
-%     forall(s1, s2 in Students where ((s1 < s2) /\ (StudentsProgramm[s1] == StudentsProgramm[s2]) /\ (StudentsCourseIds[s1] == StudentsCourseIds[s2]))) (
-%         StartTs[s1] <= StartTs[s2]
-%     )
-% ); 
+%constraint symmetry_breaking_constraint(
+%    forall(s1, s2 in Students where ((s1 < s2) /\ (StudentsProgramm[s1] == StudentsProgramm[s2]) /\ (StudentsCourseIds[s1] == StudentsCourseIds[s2]))) (
+%        StartTs[s1] <= StartTs[s2]
+%    )
+%); 
 
 %% Determines what is the day of the time slot
 function var int: day(var int: ts, int: unit) =
@@ -101,12 +101,6 @@ constraint %% fill in collision matrix: 1 if the time interval for two students 
         endif
         /\ CollisionMX[s1, s2] == CollisionMX[s2, s1]
     );
-
-%%---------------------------
-constraint
-   forall(i in Students) (
-      sum(j in Students) (CollisionMX[i, j]) <= RoomNr
-   );
 
 constraint %% intersected lunch & exam not in same room - Exam cannot happen in a room with lunch break
     forall(s in Students, L in Sessions) (
@@ -132,14 +126,14 @@ constraint %% no exam on 2 days
     );
 
 
-constraint %% student & instructor both available at exam time slots
-    forall(s in Students) (
-        forall(ts in StudentsTs[s]) (
-            forall(i in InstructorSchedule[s])(
-                InstructorsAvailability[i, day(ts, AvailabilitySlotsLenght)] == 1
-            )
-        )
-    );
+%constraint %% student & instructor both available at exam time slots
+%    forall(s in Students) (
+%        forall(ts in StudentsTs[s]) (
+%            forall(i in InstructorSchedule[s])(
+%                InstructorsAvailability[i, day(ts, AvailabilitySlotsLenght)] == 1
+%            )
+%        )
+%    );
     
 constraint %% instructors in Roles matched with programmes, with demands, added to schedule
     forall(s in Students, r in Roles where RolesDemands[r] > 0) (       
@@ -211,11 +205,11 @@ constraint %% same program in a session
         endif
     );
 
-var int: supervisor_available;
-constraint if (SupervisorAvailable == 0) then supervisor_available == 0 else 
-    supervisor_available == SupervisorAvailable * sum(s in Students, ts in StudentsTs[s]) (
-       (1 - InstructorsAvailability[StudentsSupervisorId[s], day(ts,AvailabilitySlotsLenght)])
-    ) endif;
+%var int: supervisor_available;
+%constraint if (SupervisorAvailable == 0) then supervisor_available == 0 else 
+%    supervisor_available == SupervisorAvailable * sum(s in Students, ts in StudentsTs[s]) (
+%       (1 - InstructorsAvailability[StudentsSupervisorId[s], day(ts,AvailabilitySlotsLenght)])
+%    ) endif;
     
 var int: optimal_lunch_len = if (OptimalLunchLenght[1] == 0) then 0 else
     OptimalLunchLenght[1] * sum(L in Sessions)(abs(LunchLen[L] - OptimalLunchLenght[2])) endif;
@@ -253,7 +247,9 @@ var int: mergeability = max(0, if (Mergeability == 0) then 0 else
     Mergeability * sum(s in Students)(card(InstructorSchedule[s] union {StudentsSupervisorId[s]}) - TheoryticalMinCard[s] - sum(RolesDemands)) endif);    
   
 
-var int: obj = supervisor_available + optimal_lunch_len + optimal_start_ts + optimal_finish_ts + minimize_rooms + roles_soft_continuity + same_degree_in_room + mergeability;
+var int: obj = 
+%supervisor_available + 
+optimal_lunch_len + optimal_start_ts + optimal_finish_ts + minimize_rooms + roles_soft_continuity + same_degree_in_room + mergeability;
                                              
 solve minimize obj;
 
@@ -264,7 +260,7 @@ output ["StartTs = \(StartTs);\n",
         "ExaminersSchedule = \(ExaminersSchedule);\n",
         "LunchStartTs = \(LunchStartTs);\n",
         "LunchLen = \(LunchLen);\n",
-        "supervisor_available = " ++ show(supervisor_available),
+ %       "supervisor_available = " ++ show(supervisor_available),
         ";\noptimal_lunch_len = \(optimal_lunch_len);\n",
         "optimal_start_ts = \(optimal_start_ts);\n",
         "optimal_finish_ts = \(optimal_finish_ts);\n",
