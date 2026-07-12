@@ -7,17 +7,6 @@ import sys
 import time
 
 
-def __format_time(elapsed: float) -> str:
-    if elapsed < 60:
-        return f'{elapsed:.2f} s'
-    elif elapsed < 3600:
-        mins = elapsed / 60
-        return f'{mins:.2f} m'
-    else:
-        hrs = elapsed / 3600
-        return f'{hrs:.2f} h'
-
-
 def run_model_on_input(
         input_path: str,
         output_folder: str,
@@ -65,7 +54,7 @@ def run_model_on_input(
 
         end_time = time.time()
         elapsed_time = end_time - start_time
-        f.write(f'% time elapsed: {__format_time(elapsed_time)}')
+        f.write(f'% time elapsed: {elapsed_time:.2f} s')
 
     print(f'Output saved to {output_filepath}')
 
