@@ -1,0 +1,11 @@
+# Set default behavior: auto-normalize text files to LF in Git
+* text=auto
+
+# Explicitly mark text/binary files if needed
+*.txt text
+*.md text
+
+# Keep binary files untouched
+*.png binary
+*.jpg binary
+*.pdf binary
