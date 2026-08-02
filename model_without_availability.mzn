@@ -73,11 +73,36 @@ array[Sessions] of var 1..TotalTs: LunchStartTs;    % Starting time slot for the
 array[Sessions] of var LunchTsMinLen..SlotsPerDay: LunchLen;    % Number of time slots for lunch for a given session
 array[Sessions] of var Rooms: SessionRoomSchedule;    %  Room ID for a given session
 
-%constraint symmetry_breaking_constraint(
-%    forall(s1, s2 in Students where ((s1 < s2) /\ (StudentsProgramm[s1] == StudentsProgramm[s2]) /\ (StudentsCourseIds[s1] == StudentsCourseIds[s2]))) (
-%        StartTs[s1] <= StartTs[s2]
-%    )
-%); 
+constraint symmetry_breaking_constraint(
+    forall(s1, s2 in Students where ((s1 < s2) /\ (StudentsProgramm[s1] == StudentsProgramm[s2]) /\ (StudentsCourseIds[s1] == StudentsCourseIds[s2]))) (
+        StartTs[s1] <= StartTs[s2]
+    )
+);
+
+% --- Check if the given instructor is in programs and roles ---
+function array[Programms, Roles] of bool: check_instructor_in_roles(int: instructor_id) =
+  array2d(Programms, Roles, [
+    instructor_id in InstructorRolesPerProgramm[p, r] 
+    | p in Programms, r in Roles
+  ]); 
+  
+
+% Oktató kurzus-kompatibilitása
+function set of Courses: check_instructor_courses(int: instructor_id) =
+  { c | c in Courses where instructor_id in CoursesInstructorIds[c] };
+
+% Szimmetriatörő megkötés (Lexikografikus rendezés):
+constraint symmetry_breaking_constraint(
+    forall(i1, i2 in Instructors where (
+        (i1 < i2) /\ 
+        (check_instructor_in_roles(i1) == check_instructor_in_roles(i2)) /\
+        (check_instructor_courses(i1) == check_instructor_courses(i2))
+    )) (
+        lex_greatereq([i1 in InstructorSchedule[s] | s in Students], 
+                 [i2 in InstructorSchedule[s] | s in Students])
+    )
+);
+
 
 %% Determines what is the day of the time slot
 function var int: day(var int: ts, int: unit) =
@@ -194,7 +219,7 @@ constraint %% no parallel scheduling among instructors
 
 %%%%% -----------------------------------------------------new    
 constraint %% instructorschedule valojaban a rolesschedule és examinerschedule unioja
-    forall(s in Students, r in Roles) (
+    forall(s in Students) (
         array_union(row(RolesSchedule, s)) union ExaminersSchedule[s] == InstructorSchedule[s]
     );
 
