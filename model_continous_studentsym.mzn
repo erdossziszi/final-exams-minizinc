@@ -107,12 +107,12 @@ predicate overlap(var float: s1, var float: len1, var float: s2, var float: len2
 % 5. SZIMMETRIATÖRÉS (HARD CONSTRAINTS)
 % =============================================================================
 
-% % Hallgatói szimmetriatörés
-% constraint symmetry_breaking_constraint(
-%     forall(s1, s2 in Students where ((s1 < s2) /\ (StudentsProgramm[s1] == StudentsProgramm[s2]) /\ (StudentsCourseIds[s1] == StudentsCourseIds[s2]))) (
-%         StartTs[s1] <= StartTs[s2]
-%     )
-% );
+% Hallgatói szimmetriatörés
+constraint symmetry_breaking_constraint(
+    forall(s1, s2 in Students where ((s1 < s2) /\ (StudentsProgramm[s1] == StudentsProgramm[s2]) /\ (StudentsCourseIds[s1] == StudentsCourseIds[s2]))) (
+        StartTs[s1] <= StartTs[s2]
+    )
+);
 
 % % Oktatói szimmetriatörés (lex_ge használatával)
 % constraint symmetry_breaking_constraint(

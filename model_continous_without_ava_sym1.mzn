@@ -27,7 +27,7 @@ int: TotalTs = DaysNr * SlotsPerDay;
 int: TotalAvTs = TotalTs div AvailabilitySlotsLenght;   
 
 array[Instructors] of set of 1..ProgrammNr: InstructorsProgramm;    
-array[Instructors, 1..TotalAvTs] of 0..1: InstructorsAvailability;   
+%array[Instructors, 1..TotalAvTs] of 0..1: InstructorsAvailability;   
 
 int: SessionNr = DaysNr * RoomNr;   
 set of int: Sessions = 1..SessionNr;    
@@ -93,38 +93,61 @@ function var int: day_func(var float: ts, float: unit) =
 predicate overlap(var float: s1, var float: len1, var float: s2, var float: len2) =
     not (s1 + len1 <= s2 \/ s2 + len2 <= s1);
 
-% % Oktatói felcserélhetőség ellenőrzése szimmetriatöréshez
-% function array[Programms, Roles] of bool: check_instructor_in_roles(int: instructor_id) =
-%   array2d(Programms, Roles, [
-%     instructor_id in InstructorRolesPerProgramm[p, r] 
-%     | p in Programms, r in Roles
-%   ]); 
+% Oktatói felcserélhetőség ellenőrzése szimmetriatöréshez
+function array[Programms, Roles] of bool: check_instructor_in_roles(int: instructor_id) =
+  array2d(Programms, Roles, [
+    instructor_id in InstructorRolesPerProgramm[p, r] 
+    | p in Programms, r in Roles
+  ]); 
 
-% function set of Courses: check_instructor_courses(int: instructor_id) =
-%   { c | c in Courses where instructor_id in CoursesInstructorIds[c] };
+function set of Courses: check_instructor_courses(int: instructor_id) =
+  { c | c in Courses where instructor_id in CoursesInstructorIds[c] };
 
 % =============================================================================
 % 5. SZIMMETRIATÖRÉS (HARD CONSTRAINTS)
 % =============================================================================
 
-% % Hallgatói szimmetriatörés
-% constraint symmetry_breaking_constraint(
-%     forall(s1, s2 in Students where ((s1 < s2) /\ (StudentsProgramm[s1] == StudentsProgramm[s2]) /\ (StudentsCourseIds[s1] == StudentsCourseIds[s2]))) (
-%         StartTs[s1] <= StartTs[s2]
-%     )
-% );
+% Hallgatói szimmetriatörés
+constraint symmetry_breaking_constraint(
+    forall(s1, s2 in Students where ((s1 < s2) /\ (StudentsProgramm[s1] == StudentsProgramm[s2]) /\ (StudentsCourseIds[s1] == StudentsCourseIds[s2]))) (
+        StartTs[s1] <= StartTs[s2]
+    )
+);
 
-% % Oktatói szimmetriatörés (lex_ge használatával)
-% constraint symmetry_breaking_constraint(
-%     forall(i1, i2 in Instructors where (
-%         (i1 < i2) /\ 
-%         (check_instructor_in_roles(i1) == check_instructor_in_roles(i2)) /\
-%         (check_instructor_courses(i1) == check_instructor_courses(i2))
-%     )) (
-%         lex_ge([bool2int(i1 in InstructorSchedule[s]) | s in Students], 
-%                [bool2int(i2 in InstructorSchedule[s]) | s in Students])
-%     )
-% );
+% --- 1. Segédváltozó az oktatók első megjelenési idejének meghatározására ---
+% Ha az oktató sehol sincs beosztva, a maximális idő + 1.0 értéket veszi fel.
+array[Instructors] of var 1.0..(TotalTs + 1.0): InstructorFirstStart = [
+    min([ if i in InstructorSchedule[s] then StartTs[s] else TotalTs + 1.0 endif | s in Students ])
+    | i in Instructors
+];
+
+% --- 2. Halmaz azon szerepkörökről, ahol A SOFT CONTINUITY BÜNTETÉS SÚLYA > 0 ---
+set of Roles: SoftRoles = { r | r in Roles where RolesSoftContinuity[2, r] > 0 };
+
+% --- 3. Hibrid Szimmetriatörő megkötés ---
+constraint symmetry_breaking_constraint(
+    forall(i1, i2 in Instructors where (
+        (i1 < i2) /\ 
+        (check_instructor_in_roles(i1) == check_instructor_in_roles(i2)) /\
+        (check_instructor_courses(i1) == check_instructor_courses(i2))
+    )) (
+        let {
+            % Megvizsgáljuk, hogy i1 (és így a vele azonos i2) betölthet-e legalább egy olyan 
+            % szerepkört valamelyik szakon, amire él a soft continuity szabály
+            bool: is_affected_by_soft_continuity = exists(p in Programms, r in SoftRoles) (
+                i1 in InstructorRolesPerProgramm[p, r]
+            );
+        } in
+            if not is_affected_by_soft_continuity then
+                % A) Ha NEM érintettek: Marad az eredeti, szigorúbb lexikografikus rendezés
+                lex_greatereq([i1 in InstructorSchedule[s] | s in Students], 
+                    [i2 in InstructorSchedule[s] | s in Students])
+            else
+                % B) Ha ÉRINTETTEK: First-Touch szimmetriatörést alkalmazunk
+                InstructorFirstStart[i1] <= InstructorFirstStart[i2]
+            endif
+    )
+);
 
 % =============================================================================
 % 6. FOLYTONOS IDŐBELI ÉS KAPACITÁSI MEGKÖTÉSEK
@@ -173,12 +196,12 @@ constraint forall(s in Students) (
    day_func(StartTs[s], SlotsPerDayF) == day_func(StartTs[s] + int2float(ExamLen[s]) - 0.001, SlotsPerDayF)
 );
 
-%Oktatók elérhetősége (folytonos időponthoz rendelhető idősáv alapján)
-constraint forall(s in Students) (
-   forall(i in InstructorSchedule[s]) (
-       InstructorsAvailability[i, day_func(StartTs[s], AvailabilitySlotsLenght)] == 1
-   )
-);
+% %Oktatók elérhetősége (folytonos időponthoz rendelhető idősáv alapján)
+% constraint forall(s in Students) (
+%    forall(i in InstructorSchedule[s]) (
+%        InstructorsAvailability[i, day_func(StartTs[s], AvailabilitySlotsLenght)] == 1
+%    )
+% );
 
 % =============================================================================
 % 7. OKTATÓI ÉS SZEREPKÖRI FELELŐSSÉGEK (HARD CONSTRAINTS)
@@ -250,10 +273,10 @@ constraint forall(s1, s2 in Students where s1 < s2)(
 % 8. SOFT CONSTRAINTS ÉS CÉLFÜGGVÉNY
 % =============================================================================
 
-var float: supervisor_available = if (SupervisorAvailable == 0) then 0.0 else 
-    int2float(SupervisorAvailable) * sum(s in Students) (
-       1.0 - int2float(InstructorsAvailability[StudentsSupervisorId[s], day_func(StartTs[s], AvailabilitySlotsLenght)])
-    ) endif;
+% var float: supervisor_available = if (SupervisorAvailable == 0) then 0.0 else 
+%     int2float(SupervisorAvailable) * sum(s in Students) (
+%        1.0 - int2float(InstructorsAvailability[StudentsSupervisorId[s], day_func(StartTs[s], AvailabilitySlotsLenght)])
+%     ) endif;
 
 var float: optimal_lunch_len = if (OptimalLunchLenght[1] == 0) then 0.0 else
     int2float(OptimalLunchLenght[1]) * sum(L in Sessions)(abs(LunchLen[L] - int2float(OptimalLunchLenght[2]))) endif;
@@ -290,7 +313,7 @@ var float: mergeability = max(0.0, if (Mergeability == 0) then 0.0 else
     int2float(Mergeability) * sum(s in Students)(card(InstructorSchedule[s] union {StudentsSupervisorId[s]}) - TheoryticalMinCard[s] - sum(RolesDemands)) endif);    
 
 var float: obj = 
-     supervisor_available + 
+%     supervisor_available + 
      optimal_lunch_len + 
      optimal_start_ts + 
      optimal_finish_ts + 
@@ -314,7 +337,7 @@ output ["StartTs = \(StartTs);\n",
         "ExaminersSchedule = \(ExaminersSchedule);\n",
         "LunchStartTs = \(LunchStartTs);\n",
         "LunchLen = \(LunchLen);\n",
-        "supervisor_available = \(supervisor_available);\n",
+%        "supervisor_available = \(supervisor_available);\n",
         "optimal_lunch_len = \(optimal_lunch_len);\n",
         "optimal_start_ts = \(optimal_start_ts);\n",
         "optimal_finish_ts = \(optimal_finish_ts);\n",

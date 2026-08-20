@@ -205,7 +205,7 @@ constraint %% no parallel scheduling among instructors
 
 %%%%% -----------------------------------------------------new    
 constraint %% instructorschedule valojaban a rolesschedule és examinerschedule unioja
-    forall(s in Students, r in Roles) (
+    forall(s in Students) (
         array_union(row(RolesSchedule, s)) union ExaminersSchedule[s] == InstructorSchedule[s]
     );
 
